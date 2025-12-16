@@ -7,4 +7,5 @@
 - No data is sold or shared with third parties
 **Data Deletion:**
 - Use `>removeperson @NAME` to remove your data
+
 **Last Updated:** [12/16/2025]
