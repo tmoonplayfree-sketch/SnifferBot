@@ -1,17 +1,34 @@
 import discord
 from discord.ext import commands
 import asyncio
+import json
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
-latoken - os.getenv('YOUR_TOKEN') #make new .env file and add YOUR_TOKEN = and your token
+latoken = os.getenv('YOUR_TOKEN') #make new .env file and add YOUR_TOKEN = and your token
 
 intents = discord.Intents.default()
 intents.message_content = True
+intents.voice_states = True
+intents.members = True
+intents.guilds = True
 
 sniffer = commands.Bot(command_prefix='>', intents=intents)
+
+SOUND_FILE = 'user_sounds.json'
+
+def load_sounds():
+    if os.path.exists(SOUND_FILE):
+        with open(SOUND_FILE, 'r') as f:
+            return json.load(f)
+    return {}
+def save_sounds(data):
+    with open(SOUND_FILE, 'w') as f:
+        json.dump(data, f, indent=4)
+
+user_sounds = load_sounds()
 
 @sniffer.event
 async def on_ready():
@@ -20,13 +37,16 @@ async def on_ready():
 @sniffer.command()
 async def join(ctx):
     chat = ctx.author.voice
+    await ctx.send(f"YOUR ID IS: {ctx.author.id}")
+    print(f"User ID string: '{str(ctx.author.id)}'")
+    print(f"user sound: {user_sounds}")
     if chat != None:
         await chat.channel.connect()
     else:
         print("CONNECT DUMBASS")
     
 @sniffer.command()
-async def talk(channel, path='YOUSTINK.mp3'):
+async def talk(channel, path='sounds/YOUSTINK.mp3'):
     source = discord.FFmpegPCMAudio(path)
     vc = channel.guild.voice_client
     if not vc:
@@ -50,24 +70,67 @@ async def on_voice_state_update(member, before, after): #checks if someone in vc
             vc.disconnect(),
             sniffer.loop
         )
-    def playing(sound):
-        vc.play(
-            discord.FFmpegPCMAudio(sound),
-            after=after_playing
-                )
     if before.channel is None and after.channel is not None:
         print(f'{member.name} is a piece of shi') 
-        if member.guild.voice_client:
-            return
-        if member.name == 'in3po4':
-            vc = await after.channel.connect()
-            sound = 'YOUSTINK.mp3'
-            playing(sound)
-        elif member.name == 'tmoon2617':
-            vc = await after.channel.connect()
-            sound = 'AmongUs.mp3'
-            playing(sound)
+        user_id = str(member.id)
+        if user_id in user_sounds:
+            path = user_sounds[user_id]
+
+            if os.path.exists(path):
+                print("THERE'S A FILE")
+                voice_channel = after.channel
+                try:
+                    vc = await voice_channel.connect()
+                    vc.play(discord.FFmpegPCMAudio(path), after=after_playing)
+                except Exception as e:
+                    print(f"There is an error playing this sound: {e}")
+            else:
+                print(f"No such a file: {path}")
     elif before.channel is not None and after.channel is None:
         print(f'{member.name} fucking left')
+
+@sniffer.command()
+async def addperson(ctx, member: discord.Member, path: str):
+    #add a person and a sound
+    if not os.path.exists(path):
+        await ctx.send(f"There's no sound in {path}")
+        return
+    extensions = ['.mp3', '.wav', '.ogg', '.m4a']
+    if not any(path.lower().endswith(ext) for ext in extensions):
+        await ctx.send(f"You can only use ({', '.join(extensions)})")
+        return
+    user_sounds[str(member.id)] = path
+    save_sounds(user_sounds)
+    await ctx.send(f"Bot added: {member.mention} with his sound: {path}")
+@sniffer.command()
+async def removeperson(ctx, member: discord.Member):
+    user_id = str(member.id)
+
+    if user_id is user_sounds:
+        del user_sounds[user_id]
+        save_sounds(user_sounds)
+        await ctx.send(f"Bot removed: {member.mention} from the list")
+    else:
+        await ctx.send(f"There's no {member.mention} in the list")
+
+@sniffer.command()
+async def list(ctx):
+    if not user_sounds:
+        await ctx.send("No users added to the list :)")
+        return
+    listic = "**USERS WITH SOUNDS**\n"
+    for user_id, path in user_sounds.items():
+        try:
+            user = await sniffer.fetch_user(int(user_id))
+            listic += f" {user.mention}: {path} \n"
+        except:
+            listic += f" User ID {user_id}: {path}"
+    await ctx.send(listic)
+
+@sniffer.command()
+async def testing(ctx):
+    await ctx.send("BOT SHITTING")
+    print(f'Directory: {os.getcwd()}')
+    print(f"File: {os.path.abspath(SOUND_FILE)}")
 
 sniffer.run(latoken)
