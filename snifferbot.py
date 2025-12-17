@@ -4,10 +4,13 @@ import asyncio
 import json
 import os
 from dotenv import load_dotenv
+from keep_alive import keep_alive #to keep the bot online
 
 load_dotenv()
 
 latoken = os.getenv('YOUR_TOKEN') #make new .env file and add YOUR_TOKEN = and your token
+
+keep_alive()
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -106,7 +109,7 @@ async def addperson(ctx, member: discord.Member, path: str):
 async def removeperson(ctx, member: discord.Member):
     user_id = str(member.id)
 
-    if user_id is user_sounds:
+    if user_id in user_sounds:
         del user_sounds[user_id]
         save_sounds(user_sounds)
         await ctx.send(f"Bot removed: {member.mention} from the list")
