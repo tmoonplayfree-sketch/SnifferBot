@@ -4,13 +4,10 @@ import asyncio
 import json
 import os
 from dotenv import load_dotenv
-from keep_alive import keep_alive #to keep the bot online
 
 load_dotenv()
 
 latoken = os.getenv('YOUR_TOKEN') #make new .env file and add YOUR_TOKEN = and your token
-
-keep_alive()
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -20,6 +17,7 @@ intents.guilds = True
 
 sniffer = commands.Bot(command_prefix='>', intents=intents)
 
+MUSIC_FILE = 'playlists.json'
 SOUND_FILE = 'user_sounds.json'
 
 def load_sounds():
@@ -32,6 +30,17 @@ def save_sounds(data):
         json.dump(data, f, indent=4)
 
 user_sounds = load_sounds()
+
+def load_music():
+    if os.path.exists(MUSIC_FILE):
+        with open(MUSIC_FILE, 'r') as f:
+            return json.load(f)
+    return {}
+def save_music(data):
+    with open(MUSIC_FILE, 'w') as f:
+        json.dump(data, f, indent=4)
+
+playlists = load_music()
 
 @sniffer.event
 async def on_ready():
@@ -76,25 +85,48 @@ async def on_voice_state_update(member, before, after): #checks if someone in vc
     if before.channel is None and after.channel is not None:
         print(f'{member.name} is a piece of shi') 
         user_id = str(member.id)
-        if user_id in user_sounds:
-            path = user_sounds[user_id]
+        guild_id = str(member.guild.id)
+        print(f"{user_id}")
+        print(f"{guild_id}")
+        if guild_id in user_sounds:
+            print("we are so back")
+            if user_id in user_sounds[guild_id]:
+                path = user_sounds[guild_id][user_id]
 
-            if os.path.exists(path):
-                print("THERE'S A FILE")
-                voice_channel = after.channel
-                try:
-                    vc = await voice_channel.connect()
-                    vc.play(discord.FFmpegPCMAudio(path), after=after_playing)
-                except Exception as e:
-                    print(f"There is an error playing this sound: {e}")
-            else:
-                print(f"No such a file: {path}")
-    elif before.channel is not None and after.channel is None:
-        print(f'{member.name} fucking left')
+                if os.path.exists(path):
+                    print("THERE'S A FILE")
+                    voice_channel = after.channel
+                    try:
+                        vc = await voice_channel.connect()
+                        vc.play(discord.FFmpegPCMAudio(path), after=after_playing)
+                    except Exception as e:
+                        print(f"There is an error playing this sound: {e}")
+                else:
+                    print(f"No such a file: {path}")
+        elif before.channel is not None and after.channel is None:
+            print(f'{member.name} fucking left')
+
+@sniffer.command()
+async def addplaylist(ctx, music: str):
+    guild = str(ctx.guild.id)
+    if not os.path.exists(music):
+        await ctx.send(f"There's no music in {music}")
+        return
+    extensions = ['.mp3', '.wav', '.ogg', '.m4a']
+    if not any(music.lower().endswith(ext) for ext in extensions):
+        await ctx.send(f"can only use ({', '.join(extensions)})")
+        return
+    if guild not in playlists:
+        playlists[guild] = {}
+    playlists[guild] = music
+    save_music(playlists)
+    await ctx.send("Added playlist")
 
 @sniffer.command()
 async def addperson(ctx, member: discord.Member, path: str):
     #add a person and a sound
+    guild = str(ctx.guild.id)
+    user_id = str(member.id) 
     if not os.path.exists(path):
         await ctx.send(f"There's no sound in {path}")
         return
@@ -102,37 +134,53 @@ async def addperson(ctx, member: discord.Member, path: str):
     if not any(path.lower().endswith(ext) for ext in extensions):
         await ctx.send(f"You can only use ({', '.join(extensions)})")
         return
-    user_sounds[str(member.id)] = path
+    if guild not in user_sounds:
+        user_sounds[guild] = {}
+    user_sounds[guild][user_id] = path
     save_sounds(user_sounds)
     await ctx.send(f"Bot added: {member.mention} with his sound: {path}")
+
 @sniffer.command()
 async def removeperson(ctx, member: discord.Member):
     user_id = str(member.id)
+    guild = str(ctx.guild.id)
 
-    if user_id in user_sounds:
-        del user_sounds[user_id]
+    if user_id in user_sounds[guild]:
+        del user_sounds[guild][user_id]
         save_sounds(user_sounds)
         await ctx.send(f"Bot removed: {member.mention} from the list")
     else:
         await ctx.send(f"There's no {member.mention} in the list")
 
 @sniffer.command()
+async def play(ctx):
+    guild = str(ctx.guild.id)
+    music = playlists[guild]
+    vc = discord.utils.get(sniffer.voice_clients, guild=ctx.guild) 
+    asyncio.run_coroutine_threadsafe(
+        vc.play(discord.FFmpegPCMAudio(music)),
+        sniffer.loop
+        )
+@sniffer.command()
 async def list(ctx):
-    if not user_sounds:
+    guild_id = str(ctx.guild.id)
+    if guild_id not in user_sounds or not user_sounds[guild_id]:
         await ctx.send("No users added to the list :)")
         return
     listic = "**USERS WITH SOUNDS**\n"
-    for user_id, path in user_sounds.items():
+    
+    for user_id, path in user_sounds[guild_id].items():
         try:
             user = await sniffer.fetch_user(int(user_id))
             listic += f" {user.mention}: {path} \n"
         except:
-            listic += f" User ID {user_id}: {path}"
+            listic += f"User ID {user_id}: {path}"
+
     await ctx.send(listic)
 
 @sniffer.command()
 async def testing(ctx):
-    await ctx.send("BOT SHITTING")
+    await ctx.send("BOT TEST")
     print(f'Directory: {os.getcwd()}')
     print(f"File: {os.path.abspath(SOUND_FILE)}")
 
