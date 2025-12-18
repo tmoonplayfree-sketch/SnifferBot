@@ -17,8 +17,10 @@ intents.guilds = True
 
 sniffer = commands.Bot(command_prefix='>', intents=intents)
 
-MUSIC_FILE = 'playlists.json'
+FILE_FILE = 'sounds'
 SOUND_FILE = 'user_sounds.json'
+if not os.path.exists(FILE_FILE):
+    os.makedirs(FILE_FILE)
 
 def load_sounds():
     if os.path.exists(SOUND_FILE):
@@ -31,20 +33,20 @@ def save_sounds(data):
 
 user_sounds = load_sounds()
 
-def load_music():
-    if os.path.exists(MUSIC_FILE):
-        with open(MUSIC_FILE, 'r') as f:
-            return json.load(f)
-    return {}
-def save_music(data):
-    with open(MUSIC_FILE, 'w') as f:
-        json.dump(data, f, indent=4)
+#def load_music():
+#    if os.path.exists(MUSIC_FILE):
+ #       with open(MUSIC_FILE, 'r') as f:
+ #           return json.load(f)
+ #   return {}
+#def save_music(data):
+ #   with open(MUSIC_FILE, 'w') as f:
+  #      json.dump(data, f, indent=4)
 
-playlists = load_music()
+#playlists = load_music()
 
 @sniffer.event
 async def on_ready():
-    print('FUCK YOU')
+    print('Bot is ready to use')
 
 @sniffer.command()
 async def join(ctx):
@@ -56,7 +58,18 @@ async def join(ctx):
         await chat.channel.connect()
     else:
         print("CONNECT DUMBASS")
-    
+   
+@sniffer.command()
+async def commands(ctx):
+    await ctx.send("**COMMANDS**\n")
+    await ctx.send(">addperson @name pathtosound <-- add person to the sound list (if the person is already on the sound list, it just overrides the path to the sound)\n")
+    await ctx.send(">removeperson @name <-- deletes person from the sound list\n")
+    await ctx.send(">list <-- shows sound list")
+    await ctx.send(">join <-- bot joins to your voice channel\n")
+    await ctx.send(">leave <-- bot leaves you voice channel\n")
+
+
+
 @sniffer.command()
 async def talk(channel, path='sounds/YOUSTINK.mp3'):
     source = discord.FFmpegPCMAudio(path)
@@ -82,19 +95,13 @@ async def on_voice_state_update(member, before, after): #checks if someone in vc
             vc.disconnect(),
             sniffer.loop
         )
-    if before.channel is None and after.channel is not None:
-        print(f'{member.name} is a piece of shi') 
+    if before.channel is None and after.channel is not None: 
         user_id = str(member.id)
-        guild_id = str(member.guild.id)
-        print(f"{user_id}")
-        print(f"{guild_id}")
+        guild_id = str(member.guild.id) 
         if guild_id in user_sounds:
-            print("we are so back")
             if user_id in user_sounds[guild_id]:
                 path = user_sounds[guild_id][user_id]
-
                 if os.path.exists(path):
-                    print("THERE'S A FILE")
                     voice_channel = after.channel
                     try:
                         vc = await voice_channel.connect()
@@ -123,23 +130,29 @@ async def addplaylist(ctx, music: str):
     await ctx.send("Added playlist")
 
 @sniffer.command()
-async def addperson(ctx, member: discord.Member, path: str):
+async def addperson(ctx, member: discord.Member):
     #add a person and a sound
     guild = str(ctx.guild.id)
-    user_id = str(member.id) 
-    if not os.path.exists(path):
-        await ctx.send(f"There's no sound in {path}")
-        return
+    attachment = ctx.message.attachments[0]
+    user_id = str(member.id)
+    filename = f'{attachment.filename}'
+    filepath = os.path.join(FILE_FILE, filename) 
     extensions = ['.mp3', '.wav', '.ogg', '.m4a']
-    if not any(path.lower().endswith(ext) for ext in extensions):
+    if not any(attachment.filename.lower().endswith(ext) for ext in extensions):
         await ctx.send(f"You can only use ({', '.join(extensions)})")
         return
+    await attachment.save(filepath)
+    print(f"saved sound: {filepath}")
     if guild not in user_sounds:
         user_sounds[guild] = {}
-    user_sounds[guild][user_id] = path
+    if attachment.size > 10 * 1024 * 1024:
+        await ctx.send("File is too large bruh")
+        return
+    if not ctx.message.attachments:
+        await ctx.send("Attach a file")
+        return
+    user_sounds[guild][user_id] = filepath
     save_sounds(user_sounds)
-    await ctx.send(f"Bot added: {member.mention} with his sound: {path}")
-
 @sniffer.command()
 async def removeperson(ctx, member: discord.Member):
     user_id = str(member.id)
@@ -151,7 +164,18 @@ async def removeperson(ctx, member: discord.Member):
         await ctx.send(f"Bot removed: {member.mention} from the list")
     else:
         await ctx.send(f"There's no {member.mention} in the list")
-
+@sniffer.command()
+async def paths(ctx, member: discord.Member, path: str):
+    if not os.path.exists(path):
+        print("NO FILE")
+        return
+    guild = str(ctx.guild.id)
+    member_id = str(member.id)
+    if guild not in user_sounds:
+        guild_sounds[guild] = {}
+    user_sounds[guild][member_id] = path
+    save_sounds(user_sounds)
+    print(f"{member.mention} added sound: {path}")
 @sniffer.command()
 async def play(ctx):
     guild = str(ctx.guild.id)
@@ -177,11 +201,5 @@ async def list(ctx):
             listic += f"User ID {user_id}: {path}"
 
     await ctx.send(listic)
-
-@sniffer.command()
-async def testing(ctx):
-    await ctx.send("BOT TEST")
-    print(f'Directory: {os.getcwd()}')
-    print(f"File: {os.path.abspath(SOUND_FILE)}")
 
 sniffer.run(latoken)
