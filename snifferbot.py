@@ -31,6 +31,10 @@ def save_sounds(data):
         json.dump(data, f, indent=4)
 
 user_sounds = load_sounds()
+<<<<<<< HEAD
+=======
+
+>>>>>>> b52a9552cc01b56bf3df06f5718ccefa30de6092
 @sniffer.event
 async def on_ready():
     print('Bot is ready to use')
