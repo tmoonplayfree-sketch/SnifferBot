@@ -33,17 +33,6 @@ def save_sounds(data):
 
 user_sounds = load_sounds()
 
-#def load_music():
-#    if os.path.exists(MUSIC_FILE):
- #       with open(MUSIC_FILE, 'r') as f:
- #           return json.load(f)
- #   return {}
-#def save_music(data):
- #   with open(MUSIC_FILE, 'w') as f:
-  #      json.dump(data, f, indent=4)
-
-#playlists = load_music()
-
 @sniffer.event
 async def on_ready():
     print('Bot is ready to use')
