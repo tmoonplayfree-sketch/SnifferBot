@@ -21,12 +21,12 @@ sniffer = commands.Bot(command_prefix='>', intents=intents)
 
 
 SOUND_FILE = 'user_sounds.json'
-def load_sounds():
+def load_sounds(): #loads sound path from a json
     if os.path.exists(SOUND_FILE):
         with open(SOUND_FILE, 'r') as f:
             return json.load(f)
     return {}
-def save_sounds(data):
+def save_sounds(data): #saves sound path to json
     with open(SOUND_FILE, 'w') as f:
         json.dump(data, f, indent=4)
 
@@ -37,7 +37,7 @@ async def on_ready():
     print('Bot is ready to use')
 
 @sniffer.command()
-async def join(ctx):
+async def join(ctx): #joins to your vc
     chat = ctx.author.voice
     await ctx.send(f"YOUR ID IS: {ctx.author.id}")
     print(f"User ID string: '{str(ctx.author.id)}'")
@@ -48,7 +48,7 @@ async def join(ctx):
         print("CONNECT DUMBASS")
    
 @sniffer.command()
-async def commands(ctx):
+async def commands(ctx): #sends all commands
     await ctx.send("**COMMANDS**\n")
     await ctx.send(">addperson @name pathtosound <-- add person to the sound list (if the person is already on the sound list, it just overrides the path to the sound)\n")
     await ctx.send(">removeperson @name <-- deletes person from the sound list\n")
@@ -57,7 +57,7 @@ async def commands(ctx):
     await ctx.send(">leave <-- bot leaves you voice channel\n")
 
 @sniffer.command()
-async def talk(channel, path='sounds/YOUSTINK.mp3'):
+async def talk(channel, path='sounds/YOUSTINK.mp3'): #demo talk function which makes bot make a sound
     source = discord.FFmpegPCMAudio(path)
     vc = channel.guild.voice_client
     if not vc:
@@ -67,15 +67,19 @@ async def talk(channel, path='sounds/YOUSTINK.mp3'):
         vc.play(source, after=lambda e: print(f'Suck ma dih' if e else None))
 
 @sniffer.command()
-async def leave(ctx):
+async def leave(ctx): #makes bot leave from vc
     voice = discord.utils.get(sniffer.voice_clients, guild=ctx.guild)
     if voice.is_connected():
         await voice.disconnect()
 
 @sniffer.event
+<<<<<<< HEAD
 async def on_voice_state_update(member, before, after): #checks if someone in vc and sends voice mail
     user_id = str(member.id)
     guild_id = str(member.guild.id)
+=======
+async def on_voice_state_update(member, before, after): #checks if someone in vc and makes sounds from user_sounds.json :> 
+>>>>>>> f37c8c8e993d99d99fc8c919d4468eef1aebc93f
     def after_playing(error = True):
         if error == True:
             print(error)
@@ -100,7 +104,7 @@ async def on_voice_state_update(member, before, after): #checks if someone in vc
             print(f'{member.name} fucking left')
 
 @sniffer.command()
-async def addperson(ctx, member: discord.Member):
+async def addperson(ctx, member: discord.Member): #adds a person with it own sound through attachments. And from attachments, the sound file is downloaded to your sounds/ directory. And adds the person to the list  of members with sounds
     #add a person and a sound
     laurl = 'sounds'
     guild = str(ctx.guild.id)
@@ -122,7 +126,7 @@ async def addperson(ctx, member: discord.Member):
     save_sounds(user_sounds)
 
 @sniffer.command()
-async def removeperson(ctx, member: discord.Member):
+async def removeperson(ctx, member: discord.Member): #removes a person which is already on the list, and removes his sound and name from json
     user_id = str(member.id)
     guild = str(ctx.guild.id)
     if user_id in user_sounds[guild]:
@@ -132,7 +136,7 @@ async def removeperson(ctx, member: discord.Member):
     else:
         await ctx.send(f"There's no {member.mention} in the list")
 @sniffer.command()
-async def list(ctx):
+async def list(ctx): #lists all members with sounds
     guild_id = str(ctx.guild.id)
     if guild_id not in user_sounds or not user_sounds[guild_id]:
         await ctx.send("No users added to the list :)")
