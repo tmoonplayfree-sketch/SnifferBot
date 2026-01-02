@@ -73,9 +73,7 @@ async def leave(ctx):
         await voice.disconnect()
 
 @sniffer.event
-async def on_voice_state_update(member, before, after): #checks if someone in vc and sends voice mail
-    user_id = str(member.id)
-    guild_id = str(member.guild.id)
+async def on_voice_state_update(member, before, after): #checks if someone in vc and sends voice mail :> 
     def after_playing(error = True):
         if error == True:
             print(error)
@@ -89,48 +87,57 @@ async def on_voice_state_update(member, before, after): #checks if someone in vc
         if guild_id in user_sounds:
             if user_id in user_sounds[guild_id]:
                 path = user_sounds[guild_id][user_id]
-                voice_channel = after.channel
-                try:
-                    vc = await voice_channel.connect()
-                    vc.play(discord.FFmpegPCMAudio(path), after=after_playing)
-                except Exception as e:
+                if os.path.exists(path):
+                    voice_channel = after.channel
+                    try:
+                        vc = await voice_channel.connect()
+                        vc.play(discord.FFmpegPCMAudio(path), after=after_playing)
+                    except Exception as e:
                         print(f"There is an error playing this sound: {e}")
-               
+                else:
+                    print(f"No such a file: {path}")
         elif before.channel is not None and after.channel is None:
             print(f'{member.name} fucking left')
 
 @sniffer.command()
 async def addperson(ctx, member: discord.Member):
     #add a person and a sound
-    laurl = 'sounds'
+    lapath = 'sounds'
     guild = str(ctx.guild.id)
     attachment = ctx.message.attachments[0]
-    url = str(attachment.url)
-    print(f"{url}")
     user_id = str(member.id)
-    fileurl = f'(url)'
-    filename = attachment.filename
+    filename = f'{attachment.filename}'
+    filepath = os.path.join(lapath, filename) 
+    extensions = ['.mp3', '.wav', '.ogg', '.m4a']
+    if not any(attachment.filename.lower().endswith(ext) for ext in extensions):
+        await ctx.send(f"You can only use ({', '.join(extensions)})")
+        return
+    await attachment.save(filepath)
+    print(f"saved sound: {filepath}")
     await ctx.send(f"{member.mention} now has a sound: {filename}")
     if guild not in user_sounds:
         user_sounds[guild] = {}
-    if user_id not in user_sounds:
-        user_sounds[guild][user_id] = url 
-    if not attachment:
+    if attachment.size > 10 * 1024 * 1024:
+        await ctx.send("File is too large bruh")
+        return
+    if not ctx.message.attachments:
         await ctx.send("Attach a file")
         return
-    user_sounds[guild][user_id] = url
+    user_sounds[guild][user_id] = filepath
     save_sounds(user_sounds)
-
 @sniffer.command()
 async def removeperson(ctx, member: discord.Member):
     user_id = str(member.id)
     guild = str(ctx.guild.id)
+
     if user_id in user_sounds[guild]:
         del user_sounds[guild][user_id]
         save_sounds(user_sounds)
-        await ctx.send(f"Removed: {member.mention} from the list")
+        await ctx.send(f"Bot removed: {member.mention} from the list")
     else:
         await ctx.send(f"There's no {member.mention} in the list")
+    print(f"{member.mention} added sound: {path}")
+
 @sniffer.command()
 async def list(ctx):
     guild_id = str(ctx.guild.id)
@@ -138,12 +145,13 @@ async def list(ctx):
         await ctx.send("No users added to the list :)")
         return
     listic = "**USERS WITH SOUNDS**\n"
-    for user_id, url in user_sounds[guild_id].items():
+    
+    for user_id, path in user_sounds[guild_id].items():
         try:
             user = await sniffer.fetch_user(int(user_id))
-            listic += f" {user.mention}: {url} \n"
+            listic += f" {user.mention}: {path} \n"
         except:
-            listic += f"User ID {user_id}: {url}"
+            listic += f"User ID {user_id}: {path}"
 
     await ctx.send(listic)
 
