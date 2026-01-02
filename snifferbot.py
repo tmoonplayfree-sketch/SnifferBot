@@ -73,13 +73,10 @@ async def leave(ctx): #makes bot leave from vc
         await voice.disconnect()
 
 @sniffer.event
-<<<<<<< HEAD
 async def on_voice_state_update(member, before, after): #checks if someone in vc and sends voice mail
     user_id = str(member.id)
     guild_id = str(member.guild.id)
-=======
 async def on_voice_state_update(member, before, after): #checks if someone in vc and makes sounds from user_sounds.json :> 
->>>>>>> f37c8c8e993d99d99fc8c919d4468eef1aebc93f
     def after_playing(error = True):
         if error == True:
             print(error)
